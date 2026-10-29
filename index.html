@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportistica Ritenute d'Acconto - ERP Workflow</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- html2pdf.js per l'esportazione in PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #ffffff; }
+        .bg-formula { background-color: #FDB913; }
+        .border-formula { border-color: #FDB913; }
+        .text-formula { color: #d99a00; }
+        
+        .report-card {
+            font-family: 'Inter', sans-serif;
+            color: #1e293b;
+            background-color: #ffffff;
+        }
+
+        .tab-button.active {
+            border-bottom: 3px solid #FDB913;
+            color: #0f172a;
+            font-weight: 700;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-white text-slate-800 max-w-5xl mx-auto border-x border-slate-100 shadow-sm">
+
+    <!-- Header Applicativo -->
+    <div class="px-5 pt-4 pb-3 flex justify-between items-center bg-white border-b border-slate-100">
+        <div>
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight">Reportistica Ritenute d'Acconto</h1>
+            <p class="text-[11px] text-slate-500">Gestione Distinte Versamento ed Elaborazione Schede Percipienti</p>
+        </div>
+        <div class="flex items-center space-x-1.5 text-[11px] text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-formula"></i>
+            <span>Sistema ERP Formula Suite</span>
+        </div>
+    </div>
+
+    <!-- Barra Navigazione Tab -->
+    <div class="bg-slate-50 border-b border-slate-200 px-5 flex space-x-2">
+        <button id="tabDistintaBtn" onclick="passaTab('distinta')" 
+                class="tab-button active py-3 px-4 text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-2">
+            <i data-lucide="file-text" class="w-4 h-4 text-amber-500"></i>
+            Distinta di Versamento RA
+        </button>
+        <button id="tabPercipientiBtn" onclick="passaTab('percipienti')" 
+                class="tab-button py-3 px-4 text-xs font-semibold text-slate-500 hover:text-slate-900 transition flex items-center gap-2">
+            <i data-lucide="users" class="w-4 h-4 text-amber-500"></i>
+            Scheda Percipienti (Fornitori)
+        </button>
+    </div>
+
+    <!-- CONTENUTO PRINCIPALE -->
+    <main class="flex-1 p-5 space-y-6">
+
+        <!-- ================= TAB 1: DISTINTA DI VERSAMENTO ================= -->
+        <div id="tabDistintaContent" class="space-y-6">
+            <!-- Form Parametri Distinta -->
+            <section class="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-1.5">
+                    <i data-lucide="filter" class="w-4 h-4 text-amber-500"></i> Parametri Selezione Distinta
+                </h2>
+                
+                <form onsubmit="generaDistinta(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Data Da</label>
+                        <input type="date" id="distintaDataDa" value="2025-01-01" required 
+                               class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Data A</label>
+                        <input type="date" id="distintaDataA" value="2025-12-31" required 
+                               class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Gruppo Fornitori</label>
+                        <select class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white">
+                            <option value="TUTTI">Tutti i Gruppi</option>
+                            <option value="10" selected>10 - Fornitori Italia</option>
+                            <option value="20">20 - Fornitori Esteri</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-3 flex justify-end gap-2 pt-2 border-t border-slate-200/60">
+                        <button type="submit" 
+                                class="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-sm">
+                            <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                            Genera Distinta
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Preview Distinta -->
+            <section id="previewDistinta" class="hidden space-y-4">
+                <div class="flex justify-between items-center bg-slate-900 text-white p-3 rounded-xl shadow-md">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-xs font-semibold tracking-wide uppercase text-slate-300">Distinta Versamento RA</span>
+                    </div>
+                    <button onclick="scaricaPDF('printDistintaArea', 'Distinta_Versamento_RA.pdf')" 
+                            class="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        Esporta PDF
+                    </button>
+                </div>
+
+                <div class="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-lg">
+                    <div id="printDistintaArea" class="report-card p-8 min-w-[750px]">
+                        <!-- Header Report -->
+                        <div class="flex justify-between items-start border-b border-slate-200 pb-6 mb-6">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-200 uppercase">Distinta Esattoria</span>
+                                    <span class="text-xs text-slate-400 font-medium">| Formula Suite ERP</span>
+                                </div>
+                                <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">DISTINTA DI VERSAMENTO R.A.</h2>
+                                <p class="text-xs text-slate-500 mt-0.5 font-medium">Società principale • Pagamenti soggetti a Ritenuta d'Acconto</p>
+                            </div>
+                            
+                            <div class="text-right bg-slate-50 border border-slate-100 rounded-lg p-3 min-w-[180px]">
+                                <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Periodo Riferimento</div>
+                                <div class="text-xs font-bold text-slate-800 mt-0.5" id="lblDistintaPeriodo">01/01/2025 - 31/12/2025</div>
+                                <div class="text-[10px] text-slate-400 mt-1 border-t border-slate-200 pt-1 flex justify-between">
+                                    <span>Elaborazione:</span>
+                                    <span class="font-semibold text-slate-600">29/10/2026</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KPIs -->
+                        <div class="grid grid-cols-3 gap-4 mb-6">
+                            <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
+                                <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Totale Imponibile RA</div>
+                                <div class="text-base font-extrabold text-slate-900 mt-1">€ 3.750,00</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Somme soggette a ritenuta</div>
+                            </div>
+                            <div class="bg-amber-50/60 rounded-xl p-3.5 border border-amber-100/80">
+                                <div class="text-[10px] font-bold uppercase text-amber-700 tracking-wider">Totale Versamento Imposta</div>
+                                <div class="text-base font-extrabold text-amber-900 mt-1">€ 750,00</div>
+                                <div class="text-[10px] text-amber-700/80 mt-0.5">Ritenute totali da versare</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
+                                <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Tributo & Gruppo</div>
+                                <div class="text-xs font-bold text-slate-800 mt-1">Codice 1040</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Gruppo Fornitori 10 (Italia)</div>
+                            </div>
+                        </div>
+
+                        <!-- Dettagli Tabella -->
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between bg-slate-900 text-white px-4 py-2 rounded-lg">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="folder-open" class="w-4 h-4 text-amber-400"></i>
+                                    <span class="text-xs font-bold tracking-wide">GRUPPO 10 - FORNITORI ITALIA</span>
+                                </div>
+                                <span class="text-[10px] bg-slate-800 text-amber-300 font-semibold px-2 py-0.5 rounded">Tributo 1040</span>
+                            </div>
+
+                            <div class="overflow-hidden border border-slate-200 rounded-lg shadow-sm">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-slate-100/80 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                            <th class="py-2.5 px-3">Fornitore / Anagrafica</th>
+                                            <th class="py-2.5 px-3">Estremi Pagamento</th>
+                                            <th class="py-2.5 px-3 text-center">Aliquota</th>
+                                            <th class="py-2.5 px-3 text-right">Somme Soggette</th>
+                                            <th class="py-2.5 px-3 text-right">Imposta RA</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                                        <tr>
+                                            <td class="py-3 px-3">
+                                                <div class="font-bold text-slate-900">FORNITORE SERVIZI</div>
+                                                <div class="text-[10px] font-mono text-slate-400">Cod. F100000006 • EUR</div>
+                                            </td>
+                                            <td class="py-3 px-3 font-mono text-[11px]">
+                                                <span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600">CG 2025 PF 0000010</span>
+                                                <span class="text-[10px] text-slate-400 ml-1">07/04/25</span>
+                                            </td>
+                                            <td class="py-3 px-3 text-center font-semibold text-slate-500">20%</td>
+                                            <td class="py-3 px-3 text-right font-medium">1.000,00 €</td>
+                                            <td class="py-3 px-3 text-right font-bold text-amber-700">200,00 €</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-3 align-top">
+                                                <div class="font-bold text-slate-900">ROSSI RIT ACCONTO FRANCESCO</div>
+                                                <div class="text-[10px] font-mono text-slate-400">Cod. F100000001 • EUR</div>
+                                            </td>
+                                            <td class="py-3 px-3 font-mono text-[11px] space-y-1">
+                                                <div><span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600">CG 2025 PF 0000025</span> <span class="text-[10px] text-slate-400 ml-1">30/06/25</span></div>
+                                                <div><span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600">CG 2025 PF 0000006</span> <span class="text-[10px] text-slate-400 ml-1">17/02/25</span></div>
+                                            </td>
+                                            <td class="py-3 px-3 text-center font-semibold text-slate-500 align-top">20%</td>
+                                            <td class="py-3 px-3 text-right font-medium align-top space-y-1">
+                                                <div>500,00 €</div>
+                                                <div>2.000,00 €</div>
+                                            </td>
+                                            <td class="py-3 px-3 text-right font-bold text-amber-700 align-top space-y-1">
+                                                <div>100,00 €</div>
+                                                <div>400,00 €</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-3">
+                                                <div class="font-bold text-slate-900">VISONA' GIOVANNI</div>
+                                                <div class="text-[10px] font-mono text-slate-400">Cod. F100000007 • EUR</div>
+                                            </td>
+                                            <td class="py-3 px-3 font-mono text-[11px]">
+                                                <span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600">CG 2025 PF 0000024</span>
+                                                <span class="text-[10px] text-slate-400 ml-1">31/03/25</span>
+                                            </td>
+                                            <td class="py-3 px-3 text-center font-semibold text-slate-500">20%</td>
+                                            <td class="py-3 px-3 text-right font-medium">250,00 €</td>
+                                            <td class="py-3 px-3 text-right font-bold text-amber-700">50,00 €</td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="bg-amber-50/40 border-t-2 border-slate-200 text-xs font-bold text-slate-800">
+                                            <td colspan="3" class="py-2.5 px-3 text-right uppercase text-[10px] text-amber-900 tracking-wider">Totale Ritenute Codice 1040:</td>
+                                            <td class="py-2.5 px-3 text-right text-slate-900">3.750,00 €</td>
+                                            <td class="py-2.5 px-3 text-right text-amber-900 font-extrabold">750,00 €</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Totale Finale -->
+                        <div class="mt-6 bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow-md">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-formula flex items-center justify-center font-black text-slate-950 text-lg">€</div>
+                                <div>
+                                    <div class="text-xs uppercase font-bold tracking-wider text-slate-300">TOTALE COMPLESSIVO VERSAMENTO</div>
+                                    <div class="text-[11px] text-slate-400">Importo finale per modello F24</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-black text-amber-400">750,00 €</div>
+                                <div class="text-[10px] text-slate-400">Imponibile Totale: € 3.750,00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+
+        <!-- ================= TAB 2: SCHEDA PERCIPIENTI ================= -->
+        <div id="tabPercipientiContent" class="hidden space-y-6">
+            <!-- Form Parametri Percipienti -->
+            <section class="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-1.5">
+                    <i data-lucide="filter" class="w-4 h-4 text-amber-500"></i> Parametri Selezione Percipienti
+                </h2>
+                
+                <form onsubmit="generaPercipienti(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Data Da</label>
+                        <input type="date" id="percipientiDataDa" value="2025-01-01" required 
+                               class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Data A</label>
+                        <input type="date" id="percipientiDataA" value="2025-12-31" required 
+                               class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Selezione Percipiente / Fornitore</label>
+                        <select id="selectPercipiente" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white">
+                            <option value="ALL">Tutti i Percipienti</option>
+                            <option value="FI00000002" selected>FI00000002 - ROSSI RIT ACCONTO FRANCESCO</option>
+                            <option value="FI00000007">FI00000007 - VISONA' GIOVANNI</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-3 flex justify-end gap-2 pt-2 border-t border-slate-200/60">
+                        <button type="submit" 
+                                class="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-sm">
+                            <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                            Elabora Scheda Percipienti
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Preview Scheda Percipienti -->
+            <section id="previewPercipienti" class="hidden space-y-4">
+                <div class="flex justify-between items-center bg-slate-900 text-white p-3 rounded-xl shadow-md">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-xs font-semibold tracking-wide uppercase text-slate-300">Scheda Percipienti / Fornitori</span>
+                    </div>
+                    <button onclick="scaricaPDF('printPercipientiArea', 'Scheda_Percipienti_RA.pdf')" 
+                            class="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        Esporta PDF
+                    </button>
+                </div>
+
+                <div class="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-lg">
+                    <div id="printPercipientiArea" class="report-card p-8 min-w-[750px]">
+                        
+                        <!-- Header Report Percipienti -->
+                        <div class="flex justify-between items-start border-b border-slate-200 pb-6 mb-6">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-200 uppercase">Scheda Anagrafica & Compensi</span>
+                                    <span class="text-xs text-slate-400 font-medium">| Formula Suite ERP</span>
+                                </div>
+                                <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">SCHEDA FORNITORI / PERCIPIENTI</h2>
+                                <p class="text-xs text-slate-500 mt-0.5 font-medium">Società principale • Riepilogo Compensi e Ritenute d'Acconto</p>
+                            </div>
+                            
+                            <div class="text-right bg-slate-50 border border-slate-100 rounded-lg p-3 min-w-[180px]">
+                                <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Periodo Elaborazione</div>
+                                <div class="text-xs font-bold text-slate-800 mt-0.5" id="lblPercipientiPeriodo">01/01/2025 - 31/12/2025</div>
+                                <div class="text-[10px] text-slate-400 mt-1 border-t border-slate-200 pt-1 flex justify-between">
+                                    <span>Data Richiesta:</span>
+                                    <span class="font-semibold text-slate-600">29/10/2026</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card Anagrafica Percipiente -->
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-2 space-y-1">
+                                <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Anagrafica Percipiente</div>
+                                <div class="text-base font-extrabold text-slate-900">ROSSI RIT ACCONTO FRANCESCO</div>
+                                <div class="text-xs text-slate-600 font-mono">C.F.: RSSFNC69A01F952W • Codice: FI00000002:EUR</div>
+                                <div class="text-xs text-slate-500">VIA TIRRENO 3 - NOVARA (NO) • Nato il 01/01/1969 a NOVARA</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 border border-slate-200/80 flex flex-col justify-center">
+                                <div class="text-[10px] font-bold uppercase text-slate-400">Totale Generale Fornitore</div>
+                                <div class="text-lg font-black text-amber-700 mt-0.5">19.500,00 €</div>
+                                <div class="text-[10px] text-slate-500">Ritenuta Cumulata: € 3.900,00</div>
+                            </div>
+                        </div>
+
+                        <!-- Tabella Dettaglio Compensi Percipiente -->
+                        <div class="space-y-3">
+                            <div class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="list-checks" class="w-4 h-4 text-amber-500"></i> Dettaglio Movimenti e Compensi
+                            </div>
+
+                            <div class="overflow-hidden border border-slate-200 rounded-lg shadow-sm">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-slate-100/80 text-slate-600 font-bold uppercase text-[9px] tracking-wider border-b border-slate-200">
+                                            <th class="py-2.5 px-3">Causale / Prestazione</th>
+                                            <th class="py-2.5 px-2 text-center">Data Pag.</th>
+                                            <th class="py-2.5 px-2 text-right">Lordo R.A.</th>
+                                            <th class="py-2.5 px-2 text-right">Somme Sog.</th>
+                                            <th class="py-2.5 px-2 text-center">Aliq.</th>
+                                            <th class="py-2.5 px-2 text-right">Ritenuta</th>
+                                            <th class="py-2.5 px-2 text-right">Netto Comp.</th>
+                                            <th class="py-2.5 px-2 text-right">Esente</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 text-slate-700 font-mono text-[11px]">
+                                        <!-- Movimento 1 (Pagato) -->
+                                        <tr class="hover:bg-slate-50 transition">
+                                            <td class="py-2.5 px-3 font-sans font-semibold text-slate-800">
+                                                Comp. prestazioni lavoro aut.
+                                                <span class="ml-1 text-[9px] font-mono px-1 py-0.5 bg-emerald-100 text-emerald-800 rounded font-normal">PAGATO</span>
+                                            </td>
+                                            <td class="py-2.5 px-2 text-center">17/02/25</td>
+                                            <td class="py-2.5 px-2 text-right">2.000,00</td>
+                                            <td class="py-2.5 px-2 text-right">2.000,00</td>
+                                            <td class="py-2.5 px-2 text-center font-sans font-medium text-slate-500">20%</td>
+                                            <td class="py-2.5 px-2 text-right font-bold text-amber-700">400,00</td>
+                                            <td class="py-2.5 px-2 text-right font-semibold">1.600,00</td>
+                                            <td class="py-2.5 px-2 text-right text-slate-400">0,00</td>
+                                        </tr>
+                                        <!-- Subtotale Pagato -->
+                                        <tr class="bg-emerald-50/40 font-bold text-slate-900 border-b border-slate-200">
+                                            <td colspan="2" class="py-2 px-3 font-sans text-[10px] uppercase text-emerald-900">TOTALE PAGATO:</td>
+                                            <td class="py-2 px-2 text-right">2.000,00</td>
+                                            <td class="py-2 px-2 text-right">2.000,00</td>
+                                            <td class="py-2 px-2 text-center font-sans">20%</td>
+                                            <td class="py-2 px-2 text-right text-emerald-900">400,00</td>
+                                            <td class="py-2 px-2 text-right">1.600,00</td>
+                                            <td class="py-2 px-2 text-right">0,00</td>
+                                        </tr>
+
+                                        <!-- Movimenti da Pagare -->
+                                        <tr class="hover:bg-slate-50 transition">
+                                            <td class="py-2.5 px-3 font-sans font-medium text-slate-700">Comp. prest. lavoro autonomo</td>
+                                            <td class="py-2.5 px-2 text-center text-slate-400">-</td>
+                                            <td class="py-2.5 px-2 text-right">2.500,00</td>
+                                            <td class="py-2.5 px-2 text-right">2.500,00</td>
+                                            <td class="py-2.5 px-2 text-center font-sans">20%</td>
+                                            <td class="py-2.5 px-2 text-right text-amber-700">500,00</td>
+                                            <td class="py-2.5 px-2 text-right">2.000,00</td>
+                                            <td class="py-2.5 px-2 text-right font-semibold text-amber-800">50,00</td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-50 transition">
+                                            <td class="py-2.5 px-3 font-sans font-medium text-slate-700">Comp. prestazioni lavoro aut.</td>
+                                            <td class="py-2.5 px-2 text-center text-slate-400">-</td>
+                                            <td class="py-2.5 px-2 text-right">1.000,00</td>
+                                            <td class="py-2.5 px-2 text-right">1.000,00</td>
+                                            <td class="py-2.5 px-2 text-center font-sans">20%</td>
+                                            <td class="py-2.5 px-2 text-right text-amber-700">200,00</td>
+                                            <td class="py-2.5 px-2 text-right">800,00</td>
+                                            <td class="py-2.5 px-2 text-right text-slate-400">0,00</td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-50 transition">
+                                            <td class="py-2.5 px-3 font-sans font-medium text-slate-700">Comp. prestazioni lavoro aut.</td>
+                                            <td class="py-2.5 px-2 text-center text-slate-400">-</td>
+                                            <td class="py-2.5 px-2 text-right">1.000,00</td>
+                                            <td class="py-2.5 px-2 text-right">1.000,00</td>
+                                            <td class="py-2.5 px-2 text-center font-sans">20%</td>
+                                            <td class="py-2.5 px-2 text-right text-amber-700">200,00</td>
+                                            <td class="py-2.5 px-2 text-right">800,00</td>
+                                            <td class="py-2.5 px-2 text-right text-slate-400">0,00</td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-50 transition">
+                                            <td class="py-2.5 px-3 font-sans font-medium text-slate-700">Comp. prestazioni lavoro aut.</td>
+                                            <td class="py-2.5 px-2 text-center text-slate-400">-</td>
+                                            <td class="py-2.5 px-2 text-right">2.000,00</td>
+                                            <td class="py-2.5 px-2 text-right">2.000,00</td>
+                                            <td class="py-2.5 px-2 text-center font-sans">20%</td>
+                                            <td class="py-2.5 px-2 text-right text-amber-700">400,00</td>
+                                            <td class="py-2.5 px-2 text-right">1.600,00</td>
+                                            <td class="py-2.5 px-2 text-right text-slate-400">0,00</td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-50 transition">
+                                            <td class="py-2.5 px-3 font-sans font-medium text-slate-700">Comp. prestazioni lavoro aut.</td>
+                                            <td class="py-2.5 px-2 text-center text-slate-400">-</td>
+                                            <td class="py-2.5 px-2 text-right">10.000,00</td>
+                                            <td class="py-2.5 px-2 text-right">10.000,00</td>
+                                            <td class="py-2.5 px-2 text-center font-sans">20%</td>
+                                            <td class="py-2.5 px-2 text-right text-amber-700">2.000,00</td>
+                                            <td class="py-2.5 px-2 text-right">8.000,00</td>
+                                            <td class="py-2.5 px-2 text-right text-slate-400">0,00</td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-50 transition">
+                                            <td class="py-2.5 px-3 font-sans font-medium text-slate-700">Comp. prestazioni lavoro aut.</td>
+                                            <td class="py-2.5 px-2 text-center text-slate-400">-</td>
+                                            <td class="py-2.5 px-2 text-right">1.000,00</td>
+                                            <td class="py-2.5 px-2 text-right">1.000,00</td>
+                                            <td class="py-2.5 px-2 text-center font-sans">20%</td>
+                                            <td class="py-2.5 px-2 text-right text-amber-700">200,00</td>
+                                            <td class="py-2.5 px-2 text-right">800,00</td>
+                                            <td class="py-2.5 px-2 text-right text-slate-400">0,00</td>
+                                        </tr>
+
+                                        <!-- Subtotale Da Pagare -->
+                                        <tr class="bg-amber-50/50 font-bold text-slate-900 border-b border-slate-200">
+                                            <td colspan="2" class="py-2 px-3 font-sans text-[10px] uppercase text-amber-900">TOTALE DA PAGARE:</td>
+                                            <td class="py-2 px-2 text-right">17.500,00</td>
+                                            <td class="py-2 px-2 text-right">17.500,00</td>
+                                            <td class="py-2 px-2 text-center font-sans">20%</td>
+                                            <td class="py-2 px-2 text-right text-amber-900">3.500,00</td>
+                                            <td class="py-2 px-2 text-right">14.000,00</td>
+                                            <td class="py-2 px-2 text-right">50,00</td>
+                                        </tr>
+                                    </tbody>
+
+                                    <!-- Riepilogo Generale Fornitore -->
+                                    <tfoot>
+                                        <tr class="bg-slate-900 text-white font-bold text-xs">
+                                            <td colspan="2" class="py-3 px-3 font-sans uppercase text-[10px] tracking-wider text-amber-400">TOTALE GENERALE FORNITORE:</td>
+                                            <td class="py-3 px-2 text-right font-mono">19.500,00 €</td>
+                                            <td class="py-3 px-2 text-right font-mono">19.500,00 €</td>
+                                            <td class="py-3 px-2 text-center font-sans">20%</td>
+                                            <td class="py-3 px-2 text-right font-mono text-amber-400">3.900,00 €</td>
+                                            <td class="py-3 px-2 text-right font-mono">15.600,00 €</td>
+                                            <td class="py-3 px-2 text-right font-mono">50,00 €</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Card Riepilogativo Totali Generali -->
+                        <div class="mt-6 bg-slate-50 rounded-xl p-4 border border-slate-200">
+                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Riepilogativo Totali Generali Scheda</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                <div class="bg-white p-3 rounded-lg border border-slate-200">
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase block">Totale Pagato</span>
+                                    <span class="text-sm font-bold text-emerald-700">€ 2.000,00</span>
+                                    <span class="text-[10px] text-slate-500 block mt-0.5">Ritenuta: € 400,00</span>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg border border-slate-200">
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase block">Totale Da Pagare</span>
+                                    <span class="text-sm font-bold text-amber-700">€ 17.500,00</span>
+                                    <span class="text-[10px] text-slate-500 block mt-0.5">Ritenuta: € 3.500,00</span>
+                                </div>
+                                <div class="bg-slate-900 text-white p-3 rounded-lg">
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase block">Totale Generale</span>
+                                    <span class="text-sm font-black text-amber-400">€ 19.500,00</span>
+                                    <span class="text-[10px] text-slate-300 block mt-0.5">Ritenuta Totale: € 3.900,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- Footer Status -->
+    <footer class="bg-white border-t border-slate-200 px-5 py-2 text-[11px] text-slate-500 flex justify-between items-center">
+        <span>Sistema ERP Formula Suite</span>
+        <span>Modulo Reportistica Ritenute d'Acconto v2.5</span>
+    </footer>
+
+    <!-- Script di Gestione Interfaccia e Stampa -->
+    <script>
+        // Gestione Cambiamento Tab
+        function passaTab(nomeTab) {
+            const btnDistinta = document.getElementById('tabDistintaBtn');
+            const btnPercipienti = document.getElementById('tabPercipientiBtn');
+            const contentDistinta = document.getElementById('tabDistintaContent');
+            const contentPercipienti = document.getElementById('tabPercipientiContent');
+
+            if (nomeTab === 'distinta') {
+                btnDistinta.classList.add('active');
+                btnPercipienti.classList.remove('active');
+                contentDistinta.classList.remove('hidden');
+                contentPercipienti.classList.add('hidden');
+            } else {
+                btnPercipienti.classList.add('active');
+                btnDistinta.classList.remove('active');
+                contentPercipienti.classList.remove('hidden');
+                contentDistinta.classList.add('hidden');
+            }
+        }
+
+        // Formattazione data italiana da YYYY-MM-DD
+        function formattaData(stringaData) {
+            if (!stringaData) return '';
+            const parti = stringaData.split('-');
+            if (parti.length !== 3) return stringaData;
+            return `${parti[2]}/${parti[1]}/${parti[0]}`;
+        }
+
+        // Generazione Report Distinta
+        function generaDistinta(event) {
+            event.preventDefault();
+            const dataDa = document.getElementById('distintaDataDa').value;
+            const dataA = document.getElementById('distintaDataA').value;
+            
+            document.getElementById('lblDistintaPeriodo').innerText = `${formattaData(dataDa)} - ${formattaData(dataA)}`;
+            
+            const preview = document.getElementById('previewDistinta');
+            preview.classList.remove('hidden');
+            preview.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Generazione Report Percipienti
+        function generaPercipienti(event) {
+            event.preventDefault();
+            const dataDa = document.getElementById('percipientiDataDa').value;
+            const dataA = document.getElementById('percipientiDataA').value;
+            
+            document.getElementById('lblPercipientiPeriodo').innerText = `${formattaData(dataDa)} - ${formattaData(dataA)}`;
+            
+            const preview = document.getElementById('previewPercipienti');
+            preview.classList.remove('hidden');
+            preview.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Funzione Esportazione PDF Generica
+        function scaricaPDF(elementId, nomeFile) {
+            const elemento = document.getElementById(elementId);
+            const opzioni = {
+                margin:       8,
+                filename:     nomeFile,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opzioni).from(elemento).save();
+        }
+
+        window.onload = function() {
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
